@@ -9,8 +9,18 @@
 #include "instruction_memory.h"
 #include "registers.h"
 
-void load_instructions(instruction_memory_t *i_mem, const char *trace);
-void parse_R_type(char *opr, instruction_t *instr);
-void parse_I_type(char *opr, instruction_t *instr);
-void parse_SB_type(char *opr, instruction_t *instr);
-unsigned int get_register_number(char *reg);
+typedef struct
+{
+    uint32_t reg;
+    uint32_t imm;
+} immreg_t;
+
+int load_instructions(instruction_memory_t *i_mem, const char *trace);
+int parse_R_type(char *opr, instruction_t *instr, opcode_t *opcode);
+int parse_I_type(char *opr, instruction_t *instr, opcode_t *opcode);
+int parse_S_type(char *opr, instruction_t *instr, opcode_t *opcode);
+int parse_SB_type(char *opr, instruction_t *instr, opcode_t *opcode);
+int parse_U_type(char *opr, instruction_t *instr, opcode_t *opcode);
+int parse_UJ_type(char *opr, instruction_t *instr, opcode_t *opcode);
+int get_reg_imm(char *tok, immreg_t *dest);
+uint32_t get_register_number(char *reg);

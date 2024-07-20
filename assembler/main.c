@@ -7,7 +7,7 @@
  * Date: July 16, 2024
  *
  * Student name(s): Cole Bardin
- * Date: 
+ * Date: August 2, 2024
  *
  * */
 
@@ -34,10 +34,9 @@ int main(int argc, char **argv)
         printf("\nInstruction at PC: %u\n", PC);
         unsigned mask = (1 << 31);
         for (int i = 31; i >= 0; i--) {
-            if (instr->instruction & mask) 
-                printf("1 ");
-            else 
-                printf("0 "); 
+            if (instr->instruction & mask) printf("1");
+            else printf("0"); 
+            if(!(i % 4)) printf(" ");
 
             mask >>= 1;
         }
