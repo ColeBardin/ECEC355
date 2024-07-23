@@ -103,6 +103,7 @@ int parse_R_type(char *opr, instruction_t *instr, opcode_t *opcode)
     rs2 = immreg.reg;
 
     // Print the tokens 
+    puts("R-Type");
     printf("opcode: 0x%x\n", opc);
     printf("rd: %d\n", rd);
     printf("func3: 0x%x\n", func3);
@@ -142,51 +143,18 @@ int parse_I_type(char *opr, instruction_t *instr, opcode_t *opcode)
     if(reg != NULL)
     {
         ttype = get_reg_imm(reg, &immreg);
-        switch(ttype)
-        {
-            case 1:
-                rd = immreg.reg;
-                break;
-            case 2:
-                rd = immreg.reg;
-            case 3:
-                if(imm_found)
-                {
-                    fprintf(stderr, "Another wack error. fix your shit\n");
-                    exit(EXIT_FAILURE);
-                }
-                imm12 = immreg.imm;
-                imm_found = 1;
-                break;
-            default:
-                fprintf(stderr, "Wack error. you won't hit this\n");
-                exit(EXIT_FAILURE);
-        }
+        rd = immreg.reg;
     }
 
     reg = strtok(NULL, ", ");
     if(reg != NULL)
     {
         ttype = get_reg_imm(reg, &immreg);
-        switch(ttype)
+        rs1 = immreg.reg;
+        if(ttype > 1)
         {
-            case 1:
-                rs1 = immreg.reg;
-                break;
-            case 2:
-                rs1 = immreg.reg;
-            case 3:
-                if(imm_found)
-                {
-                    fprintf(stderr, "Another wack error. fix your shit\n");
-                    exit(EXIT_FAILURE);
-                }
-                imm12 = immreg.imm;
-                imm_found = 1;
-                break;
-            default:
-                fprintf(stderr, "Wack error. you won't hit this\n");
-                exit(EXIT_FAILURE);
+            imm_found = 1;
+            imm12 = immreg.imm;
         }
     }
 
@@ -196,24 +164,11 @@ int parse_I_type(char *opr, instruction_t *instr, opcode_t *opcode)
         if(reg != NULL)
         {
             ttype = get_reg_imm(reg, &immreg);
-            switch(ttype)
-            {
-                case 3:
-                    if(imm_found)
-                    {
-                        fprintf(stderr, "Another wack error. fix your shit\n");
-                        exit(EXIT_FAILURE);
-                    }
-                    imm12 = immreg.imm;
-                    imm_found = 1;
-                    break;
-                default:
-                    fprintf(stderr, "Cmon man\n");
-                    exit(EXIT_FAILURE);
-            }
+            imm12 = immreg.imm;
         }
     }
 
+    puts("I-Type");
     printf("opcode: 0x%x\n", opc);
     printf("rd: %u\n", rd);
     printf("funt3: 0x%x\n", func3);
@@ -237,7 +192,65 @@ int parse_S_type(char *opr, instruction_t *instr, opcode_t * opcode)
 // FIXME: parse and assemble SB-type instruction 
 int parse_SB_type(char *opr, instruction_t *instr, opcode_t *opcode)
 {
-     
+    instr->instruction = 0;
+    immreg_t immreg;
+    int ret = 0;
+    char *reg;
+    int ttype;
+    uint32_t opc = opcode->code;
+    uint32_t func3 = opcode->func3;
+    uint32_t rs1 = 0;
+    uint32_t rs2 = 0;
+    uint32_t imm12 = 0;
+    uint8_t imm_found = 0;    
+
+    reg = strtok(NULL, ", ");
+    if(reg != NULL)
+    {
+        ttype = get_reg_imm(reg, &immreg);
+        rs1 = immreg.reg;
+    }
+
+    reg = strtok(NULL, ", ");
+    if(reg != NULL)
+    {
+        ttype = get_reg_imm(reg, &immreg);
+        rs2 = immreg.reg;
+    }
+
+    if(!imm_found)
+    {
+        reg = strtok(NULL, ", ");
+        if(reg != NULL)
+        {
+            ttype = get_reg_imm(reg, &immreg);
+            imm12 = immreg.imm;
+        }
+    }
+
+    puts("SB-Type");
+    printf("opcode: 0x%x\n", opc);
+    printf("funt3: 0x%x\n", func3);
+    printf("rs1: %u\n", rs1);
+    printf("rs2: %u\n", rs2);
+    printf("imm12: 0x%x\n", imm12);
+    puts("");
+
+    uint32_t imm_4_1 = (imm12 >> 1) & 0xF;
+    uint32_t imm_10_5 = (imm12 >> 5) & 0x3F;
+    uint32_t imm_11 = (imm12 >> 11) & 0x1;
+    uint32_t imm_12 = (imm12 >> 12) & 0x1;
+
+    instr->instruction |= opc;
+    instr->instruction |= (imm_11 << 7);
+    instr->instruction |= (imm_4_1 << 8);
+    instr->instruction |= (func3 << 12);
+    instr->instruction |= (rs1 << 15);
+    instr->instruction |= (rs2 << 20);
+    instr->instruction |= (imm_10_5 << 25);
+    instr->instruction |= (imm_12 << 31);
+
+    return ret;
 }
 
 int parse_U_type(char *opr, instruction_t *instr, opcode_t *opcode)
