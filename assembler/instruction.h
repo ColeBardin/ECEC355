@@ -5,10 +5,13 @@
 
 #define NOPS 57
 
-typedef uint64_t addr_t;
-typedef uint64_t tick_t;
+typedef enum ins_type_e ins_type_t;
+typedef struct opcode_s opcode_t;
+typedef struct instruction_s instruction_t;
+typedef struct ins_list_s ins_list_t;
 
-typedef enum {
+enum ins_type_e 
+{
     NULL_TYPE,
     R_TYPE,
     I_TYPE,
@@ -16,24 +19,33 @@ typedef enum {
     SB_TYPE,
     U_TYPE,
     UJ_TYPE
-} ins_type_e;
+};
 
-typedef struct {
+struct opcode_s
+{
     char *name;
     uint8_t code;
-    ins_type_e type; 
+    ins_type_t type; 
     uint8_t func3;
     uint8_t func7;
-} opcode_t;
+};
 
-typedef struct {
-    // Byte-addressable address
-    addr_t addr;
+struct instruction_s 
+{
+    uint64_t addr;
+    uint32_t bin;
+    instruction_t *next;
+};
 
-    // This is the translated binary format of assembly input
-    uint32_t instruction;
+struct ins_list_s
+{
+    instruction_t *head;
+    instruction_t *tail;
+};
 
-} instruction_t;
+ins_list_t *ins_list_init();
+int ins_list_delete(ins_list_t *l);
+int ins_list_add(ins_list_t *l, uint64_t addr, uint32_t bin);
 
 static opcode_t opcode_map[NOPS] =
 {
@@ -96,4 +108,5 @@ static opcode_t opcode_map[NOPS] =
     {"CSRRCI", 0x73, I_TYPE,  0x7, 0x00},
 };
 
-#endif
+#endif // __INSTRUCTION_H__
+

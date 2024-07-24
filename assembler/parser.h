@@ -1,13 +1,14 @@
+#ifndef __PARSER_H__
+#define __PARSER_H__
+
 #define GNU_SOURCE
 
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/types.h>
+#include <stdint.h>
 
-#include "instruction_memory.h"
+#include "instruction.h"
 #include "registers.h"
+
+#define MAXTOKS 32
 
 typedef struct
 {
@@ -15,12 +16,17 @@ typedef struct
     uint32_t imm;
 } immreg_t;
 
-int load_instructions(instruction_memory_t *i_mem, const char *trace);
-int parse_R_type(char *opr, instruction_t *instr, opcode_t *opcode);
-int parse_I_type(char *opr, instruction_t *instr, opcode_t *opcode);
-int parse_S_type(char *opr, instruction_t *instr, opcode_t *opcode);
-int parse_SB_type(char *opr, instruction_t *instr, opcode_t *opcode);
-int parse_U_type(char *opr, instruction_t *instr, opcode_t *opcode);
-int parse_UJ_type(char *opr, instruction_t *instr, opcode_t *opcode);
+ins_list_t *load_instructions(const char *trace);
+uint32_t handle_instruction(int tokc, char *tokv[]);
+uint32_t parse_R_type(opcode_t *opcode, int tokc, char *tokv[]);
+uint32_t parse_I_type(opcode_t *opcode, int tokc, char *tokv[]);
+uint32_t parse_S_type(opcode_t *opcode, int tokc, char *tokv[]);
+uint32_t parse_SB_type(opcode_t *opcode, int tokc, char *tokv[]);
+uint32_t parse_U_type(opcode_t *opcode, int tokc, char *tokv[]);
+uint32_t parse_UJ_type(opcode_t *opcode, int tokc, char *tokv[]);
 int get_reg_imm(char *tok, immreg_t *dest);
 uint32_t get_register_number(char *reg);
+int tokenize(char *s, char *toks[], int maxtoks, char *delim);
+
+#endif // __PARSER_H__
+

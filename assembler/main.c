@@ -17,37 +17,36 @@
 
 int main(int argc, char **argv)
 {	
-    if (argc != 2) {
-        printf("Usage: %s %s\n", argv[0], "<trace-file>");
-        exit(EXIT_SUCCESS);
+    uint64_t PC = 0;
+    ins_list_t *l;
+    instruction_t *ins;
+
+    if (argc != 2) 
+    {
+        printf("Usage: %s <trace-file>\n", argv[0]);
+        exit(EXIT_FAILURE);
     }
     
-    // Load instructions from the trace file into memory 
-    instruction_memory_t instr_mem;
-    instr_mem.last = NULL;
-    load_instructions(&instr_mem, argv[1]);
+    l = load_instructions(argv[1]);
 
-    // Print instructions in binary format 
-    unsigned PC = 0;
-    while (1) {
-        instruction_t *instr = &(instr_mem.instructions[PC / 4]);
-        printf("\nInstruction at PC: %u\n", PC);
+    for(ins = l->head; ins != NULL; ins = ins->next)
+    {
+        printf("Instruction at PC: %llu\n", PC);
         unsigned mask = (1 << 31);
-        for (int i = 31; i >= 0; i--) {
-            if (instr->instruction & mask) printf("1");
+        for(int i = 31; i >= 0; i--)
+        {
+            if(ins->bin & mask) printf("1");
             else printf("0"); 
             if(!(i % 4)) printf(" ");
 
             mask >>= 1;
         }
-        printf("\n");
-        
-        // Check if we have reached the end of instruction memory
-        if (instr == instr_mem.last) 
-            break; 
+        puts("");
 
-        PC += 4;    // Increment PC to point to next instruction 
+        PC += 4;
     }
 
+    ins_list_delete(l);
     exit(EXIT_SUCCESS);
 }
+

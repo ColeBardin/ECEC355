@@ -1,10 +1,12 @@
 #include "parser.h"
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-// FIXME: add support to identify and parse I-type and SB-type instructions 
-int load_instructions(instruction_memory_t *i_mem, const char *trace)
+
+ins_list_t *load_instructions(const char *trace)
 {
-    int ret = 0;
     printf("Loading trace file: %s\n\n", trace);
     FILE *fd = fopen(trace, "r");
     if (fd == NULL) 
@@ -12,76 +14,81 @@ int load_instructions(instruction_memory_t *i_mem, const char *trace)
         perror("Cannot open trace file. \n");
         exit(EXIT_FAILURE); 
     }
-    // Iterate over all the assembly instructions
+
     char *line = NULL;
     size_t len = 0;
     ssize_t read;
+    char *tokv[MAXTOKS];
+    int tokc;
+    uint32_t bin;
+    ins_list_t *l;
 
-    addr_t PC = 0; // program counter points to the zeroth location initially.
-    int IMEM_index = 0;
+    l = ins_list_init();
+    if(l == NULL)
+    {
+        fputs("ERROR: Failed to initialize instruction list", stderr);
+        exit(EXIT_FAILURE);
+    }
 
-    while ((read = getline(&line, &len, fd)) != -1) {
-        // Assign program counter
-        i_mem->instructions[IMEM_index].addr = PC;
+    uint64_t pc = 0;
 
-        // Extract operation or opcode from the assembly instruction 
-        char *raw_instr = strtok(line, " ");
-        int opi;
-        for(opi = 0; opi < NOPS; opi++)
+    while ((read = getline(&line, &len, fd)) != EOF) {
+        tokc = tokenize(line, tokv, MAXTOKS, ", \n");
+        if(tokc == 0) 
         {
-            opcode_t *op = &opcode_map[opi];
-            if(!strcmp(raw_instr, op->name))
-            {
-                switch(op->type)
-                {
-                    case R_TYPE:
-                        ret |= parse_R_type(raw_instr, &(i_mem->instructions[IMEM_index]), op);
-                        break;
-                    case I_TYPE:
-                        ret |= parse_I_type(raw_instr, &(i_mem->instructions[IMEM_index]), op);
-                        break;
-                    case S_TYPE:
-                        ret |= parse_S_type(raw_instr, &(i_mem->instructions[IMEM_index]), op);
-                        break;
-                    case SB_TYPE:
-                        ret |= parse_SB_type(raw_instr, &(i_mem->instructions[IMEM_index]), op);
-                        break;
-                    case U_TYPE:
-                        ret |= parse_U_type(raw_instr, &(i_mem->instructions[IMEM_index]), op);
-                        break;
-                    case UJ_TYPE:
-                        ret |= parse_UJ_type(raw_instr, &(i_mem->instructions[IMEM_index]), op);
-                        break;
-                    case NULL_TYPE:
-                    default:
-                        fprintf(stderr, "Library is broken. My bad\n");
-                        exit(EXIT_FAILURE);
-                }
-                i_mem->last = &(i_mem->instructions[IMEM_index]);
-                break;
-            }
-        }
-        if(opi == NOPS)
-        {
-            fprintf(stderr, "Failed to parse line: %s\n", line);
+            fprintf(stderr, "Failed to tokenize line\n");
             exit(EXIT_FAILURE);
         }
 
-        IMEM_index++;
-        PC += 4;
+        bin = handle_instruction(tokc, tokv);
+        ins_list_add(l, pc, bin);
+
+        pc += 4;
     }
 
     fclose(fd);
-    return ret;
+    return l;
+}
+
+uint32_t handle_instruction(int tokc, char *tokv[])
+{
+    int opi;
+    for(opi = 0; opi < NOPS; opi++)
+    {
+        opcode_t *op = &opcode_map[opi];
+        if(!strcmp(tokv[0], op->name))
+        {
+            switch(op->type)
+            {
+                case R_TYPE:
+                    return parse_R_type(op, tokc, tokv);
+                case I_TYPE:
+                    return parse_I_type(op, tokc, tokv);
+                case S_TYPE:
+                    return parse_S_type(op, tokc, tokv);
+                case SB_TYPE:
+                    return parse_SB_type(op, tokc, tokv);
+                case U_TYPE:
+                    return parse_U_type(op, tokc, tokv);
+                case UJ_TYPE:
+                    return parse_UJ_type(op, tokc, tokv);
+                case NULL_TYPE:
+                default:
+                    fprintf(stderr, "Library is broken. My bad\n");
+                    exit(EXIT_FAILURE);
+            }
+        }
+    }
+    fprintf(stderr, "Failed to parse instruction: %s\n", tokv[0]);
+    exit(EXIT_FAILURE);
 }
 
 // Parse and assemble R-type instruction 
-int parse_R_type(char *opr, instruction_t *instr, opcode_t *opcode)
+uint32_t parse_R_type(opcode_t *opcode, int tokc, char *tokv[])
 {
-    instr->instruction = 0;
     immreg_t immreg;
     int ret = 0;
-    char *reg;
+    uint32_t bin = 0;
     uint32_t opc = opcode->code;
     uint32_t rd = 0;
     uint32_t func3 = opcode->func3;
@@ -89,17 +96,19 @@ int parse_R_type(char *opr, instruction_t *instr, opcode_t *opcode)
     uint32_t rs2 = 0;
     uint32_t func7 = opcode->func7;
 
-    reg = strtok(NULL, ", ");
-    get_reg_imm(reg, &immreg);
+    if(tokc != 4 || tokv == NULL || opcode == NULL)
+    {
+        fputs("ERROR: cmon man", stderr);
+        exit(EXIT_FAILURE);
+    }
+
+    get_reg_imm(tokv[1], &immreg);
     rd = immreg.reg;
 
-    reg = strtok(NULL, ", ");
-    get_reg_imm(reg, &immreg);
+    get_reg_imm(tokv[2], &immreg);
     rs1 = immreg.reg;
 
-    reg = strtok(NULL, ", ");
-    reg[strlen(reg)-1] = '\0';
-    get_reg_imm(reg, &immreg);
+    get_reg_imm(tokv[3], &immreg);
     rs2 = immreg.reg;
 
     // Print the tokens 
@@ -113,25 +122,22 @@ int parse_R_type(char *opr, instruction_t *instr, opcode_t *opcode)
     puts("");
 
     // Contruct instruction
-    instr->instruction |= opc;
-    instr->instruction |= (rd << 7);
-    instr->instruction |= (func3 << 12);
-    instr->instruction |= (rs1 << 15);
-    instr->instruction |= (rs2 << 20);
-    instr->instruction |= (func7 << 25);
+    bin |= opc;
+    bin |= (rd << 7);
+    bin |= (func3 << 12);
+    bin |= (rs1 << 15);
+    bin |= (rs2 << 20);
+    bin |= (func7 << 25);
 
-    return ret;
+    return bin;
 }
 
-
-// FIXME: parse and assemble I-type instruction 
-int parse_I_type(char *opr, instruction_t *instr, opcode_t *opcode)
+uint32_t parse_I_type(opcode_t *opcode, int tokc, char *tokv[])
 {
-    instr->instruction = 0;
     immreg_t immreg;
     int ret = 0;
-    char *reg;
     int ttype;
+    uint32_t bin;
     uint32_t opc = opcode->code;
     uint32_t rd = 0;
     uint32_t func3 = opcode->func3;
@@ -139,33 +145,32 @@ int parse_I_type(char *opr, instruction_t *instr, opcode_t *opcode)
     uint32_t imm12 = 0;
     uint8_t imm_found = 0;
 
-    reg = strtok(NULL, ", ");
-    if(reg != NULL)
+    if(tokc < 3 || tokc > 4 || tokv == NULL || opcode == NULL)
     {
-        ttype = get_reg_imm(reg, &immreg);
-        rd = immreg.reg;
+        fputs("ERROR: cmon man", stderr);
+        exit(EXIT_FAILURE);
     }
 
-    reg = strtok(NULL, ", ");
-    if(reg != NULL)
+    ttype = get_reg_imm(tokv[1], &immreg);
+    rd = immreg.reg;
+
+    ttype = get_reg_imm(tokv[2], &immreg);
+    rs1 = immreg.reg;
+    if(ttype > 1)
     {
-        ttype = get_reg_imm(reg, &immreg);
-        rs1 = immreg.reg;
-        if(ttype > 1)
-        {
-            imm_found = 1;
-            imm12 = immreg.imm;
-        }
+        imm_found = 1;
+        imm12 = immreg.imm;
     }
 
-    if(!imm_found)
+    if(!imm_found && tokc == 4)
     {
-        reg = strtok(NULL, ", ");
-        if(reg != NULL)
-        {
-            ttype = get_reg_imm(reg, &immreg);
-            imm12 = immreg.imm;
-        }
+        ttype = get_reg_imm(tokv[3], &immreg);
+        imm12 = immreg.imm;
+    }
+    else if((!imm_found && tokc == 3) || (imm_found && tokc == 4))
+    {
+        fputs("ERROR: incorrect argument format for I-type", stderr);
+        exit(EXIT_FAILURE);
     }
 
     puts("I-Type");
@@ -176,27 +181,26 @@ int parse_I_type(char *opr, instruction_t *instr, opcode_t *opcode)
     printf("imm12: %u\n", imm12);
     puts("");
 
-    instr->instruction |= opc;
-    instr->instruction |= (rd << 7);
-    instr->instruction |= (func3 << 12);
-    instr->instruction |= (rs1 << 15);
-    instr->instruction |= (imm12 << 20);
+    bin = 0;
+    bin |= opc;
+    bin |= (rd << 7);
+    bin |= (func3 << 12);
+    bin |= (rs1 << 15);
+    bin |= (imm12 << 20);
 
-    return ret;
+    return bin;
 }
 
-int parse_S_type(char *opr, instruction_t *instr, opcode_t * opcode)
+uint32_t parse_S_type(opcode_t *opcode, int tokc, char *tokv[])
 {
+    return 0;
 }
 
-// FIXME: parse and assemble SB-type instruction 
-int parse_SB_type(char *opr, instruction_t *instr, opcode_t *opcode)
+uint32_t parse_SB_type(opcode_t *opcode, int tokc, char *tokv[])
 {
-    instr->instruction = 0;
     immreg_t immreg;
-    int ret = 0;
-    char *reg;
     int ttype;
+    uint32_t bin;
     uint32_t opc = opcode->code;
     uint32_t func3 = opcode->func3;
     uint32_t rs1 = 0;
@@ -204,29 +208,20 @@ int parse_SB_type(char *opr, instruction_t *instr, opcode_t *opcode)
     uint32_t imm12 = 0;
     uint8_t imm_found = 0;    
 
-    reg = strtok(NULL, ", ");
-    if(reg != NULL)
+    if(tokc != 4 || tokv == NULL || opcode == NULL)
     {
-        ttype = get_reg_imm(reg, &immreg);
-        rs1 = immreg.reg;
+        fputs("ERROR: cmon man", stderr);
+        exit(EXIT_FAILURE);
     }
 
-    reg = strtok(NULL, ", ");
-    if(reg != NULL)
-    {
-        ttype = get_reg_imm(reg, &immreg);
-        rs2 = immreg.reg;
-    }
+    ttype = get_reg_imm(tokv[1], &immreg);
+    rs1 = immreg.reg;
 
-    if(!imm_found)
-    {
-        reg = strtok(NULL, ", ");
-        if(reg != NULL)
-        {
-            ttype = get_reg_imm(reg, &immreg);
-            imm12 = immreg.imm;
-        }
-    }
+    ttype = get_reg_imm(tokv[2], &immreg);
+    rs2 = immreg.reg;
+
+    ttype = get_reg_imm(tokv[3], &immreg);
+    imm12 = immreg.imm;
 
     puts("SB-Type");
     printf("opcode: 0x%x\n", opc);
@@ -241,24 +236,27 @@ int parse_SB_type(char *opr, instruction_t *instr, opcode_t *opcode)
     uint32_t imm_11 = (imm12 >> 11) & 0x1;
     uint32_t imm_12 = (imm12 >> 12) & 0x1;
 
-    instr->instruction |= opc;
-    instr->instruction |= (imm_11 << 7);
-    instr->instruction |= (imm_4_1 << 8);
-    instr->instruction |= (func3 << 12);
-    instr->instruction |= (rs1 << 15);
-    instr->instruction |= (rs2 << 20);
-    instr->instruction |= (imm_10_5 << 25);
-    instr->instruction |= (imm_12 << 31);
+    bin = 0;
+    bin |= opc;
+    bin |= (imm_11 << 7);
+    bin |= (imm_4_1 << 8);
+    bin |= (func3 << 12);
+    bin |= (rs1 << 15);
+    bin |= (rs2 << 20);
+    bin |= (imm_10_5 << 25);
+    bin |= (imm_12 << 31);
 
-    return ret;
+    return bin;
 }
 
-int parse_U_type(char *opr, instruction_t *instr, opcode_t *opcode)
+uint32_t parse_U_type(opcode_t *opcode, int tokc, char *tokv[])
 {
+    return 0;
 }
 
-int parse_UJ_type(char *opr, instruction_t *instr, opcode_t *opcode)
+uint32_t parse_UJ_type(opcode_t *opcode, int tokc, char *tokv[])
 {
+    return 0;
 }
 
 int get_reg_imm(char *tok, immreg_t *dest)
@@ -301,5 +299,24 @@ uint32_t get_register_number(char *reg)
         exit(EXIT_FAILURE);
     }
     return i;
+}
+
+int tokenize(char *s, char *tokv[], int maxtokv, char *delim)
+{
+    char *p;
+    int i = 0;
+
+    tokv[i] = strtok(s, delim); 
+    while(tokv[i++] != NULL)
+    {
+        if(i >= maxtokv - 1){
+            tokv[i] = NULL;
+        }
+        else
+        {
+            tokv[i] = strtok(NULL, delim);
+        }
+    }
+    return i - 1;
 }
 
