@@ -1,0 +1,23 @@
+ECEC 355 Project 1: RISC-V Assembler
+By Cole Bardin (cab572)
+
+I rewrote the starter code to work in a more efficient and dynamic way.
+Instead of using a fixed size array to keep track of instructions, a linked list is created for every one.
+This makes it no longer limited by the size of the array.
+
+Also, the program uses a register map that correlates opcode string literals with their hex values.
+This allows dynamic parsing of the instruction and reduces redundant comparrisons.
+
+The lines from the trace file are also tokenized all at once into a single tokc and tokv format.
+This is done to eliminate strtok being called on the same string from within different contexts.
+
+Another feature I changed is how the register/immediate tokens are parsed. 
+There is now 1 function that will parse a register, immediate value, or both.
+This is used on the tokens but allows for a cleaner error handling on incorrect syntax.
+
+
+To execute the program, it first must be built. 
+I modified the makefile to include the new instruction.c
+This builds the same executable file as the sample code does. It also has the same usage as the sample code.
+
+USAGE: ./assembler <trace-file>
