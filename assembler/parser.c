@@ -4,6 +4,16 @@
 #include <stdlib.h>
 #include <string.h>
 
+uint32_t(* parse_funcs[])(opcode_t *opcode, int tokc, char *tokv[]) =
+{
+    &parse_NULL_type,
+    &parse_R_type, 
+    &parse_I_type, 
+    &parse_S_type, 
+    &parse_SB_type, 
+    &parse_U_type, 
+    &parse_UJ_type, 
+};
 
 ins_list_t *load_instructions(const char *trace)
 {
@@ -58,25 +68,12 @@ uint32_t handle_instruction(int tokc, char *tokv[])
         opcode_t *op = &opcode_map[opi];
         if(!strcmp(tokv[0], op->name))
         {
-            switch(op->type)
+            if(op->type == NULL_TYPE)
             {
-                case R_TYPE:
-                    return parse_R_type(op, tokc, tokv);
-                case I_TYPE:
-                    return parse_I_type(op, tokc, tokv);
-                case S_TYPE:
-                    return parse_S_type(op, tokc, tokv);
-                case SB_TYPE:
-                    return parse_SB_type(op, tokc, tokv);
-                case U_TYPE:
-                    return parse_U_type(op, tokc, tokv);
-                case UJ_TYPE:
-                    return parse_UJ_type(op, tokc, tokv);
-                case NULL_TYPE:
-                default:
-                    fprintf(stderr, "Library is broken. My bad\n");
-                    exit(EXIT_FAILURE);
+                fprintf(stderr, "Library is broken. My bad\n");
+                exit(EXIT_FAILURE);
             }
+            return parse_funcs[op->type](op, tokc, tokv); 
         }
     }
     fprintf(stderr, "Failed to parse instruction: %s\n", tokv[0]);
@@ -193,6 +190,7 @@ uint32_t parse_I_type(opcode_t *opcode, int tokc, char *tokv[])
 
 uint32_t parse_S_type(opcode_t *opcode, int tokc, char *tokv[])
 {
+    fputs("WARNING: S-Type not implemented yet, filling 0", stderr);
     return 0;
 }
 
@@ -251,12 +249,20 @@ uint32_t parse_SB_type(opcode_t *opcode, int tokc, char *tokv[])
 
 uint32_t parse_U_type(opcode_t *opcode, int tokc, char *tokv[])
 {
+    fputs("WARNING: U-Type not implemented yet, filling 0", stderr);
     return 0;
 }
 
 uint32_t parse_UJ_type(opcode_t *opcode, int tokc, char *tokv[])
 {
+    fputs("WARNING: UJ-Type not implemented yet, filling 0", stderr);
     return 0;
+}
+
+uint32_t parse_NULL_type(opcode_t *opcode, int tokc, char *tokv[])
+{
+    fputs("ERROR: Tried to parse NULL type. Something is very wrong", stderr);
+    exit(EXIT_FAILURE);
 }
 
 int get_reg_imm(char *tok, immreg_t *dest)
