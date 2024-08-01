@@ -118,7 +118,7 @@ uint32_t parse_R_type(opcode_t *opcode, int tokc, char *tokv[])
     printf("func7: 0x%x\n", func7);
     puts("");
 
-    // Contruct instruction
+    // Construct instruction
     bin |= opc;
     bin |= (rd << 7);
     bin |= (func3 << 12);

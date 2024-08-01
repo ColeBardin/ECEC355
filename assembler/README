@@ -15,6 +15,8 @@ Another feature I changed is how the register/immediate tokens are parsed.
 There is now 1 function that will parse a register, immediate value, or both.
 This is used on the tokens but allows for a cleaner error handling on incorrect syntax.
 
+I also added spaces at every nibble (4 bits) in the binary output part of the program. This makes it easier to read the bytes of the instruction binary.
+
 
 To execute the program, it first must be built. 
 I modified the makefile to include the new instruction.c
