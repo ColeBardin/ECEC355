@@ -1,0 +1,7 @@
+addi x10, x0, 8
+addi x25, x0, 10
+add x25, x25, x25
+sd x25, 0(x10)
+ld x9, 0(x10)
+addi x22, x0, 1
+slli x11, x22, 3
