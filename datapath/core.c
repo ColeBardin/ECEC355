@@ -50,13 +50,32 @@ bool tick_func(core_t *core)
     signal_t input1;
     signal_t ALU_ret;
     signal_t zero_ret;
+    signal_t rs1;
+    signal_t rs2;
 
     control_unit(opcode->code, &ctrl);
     ALU_ctrl = ALU_control_unit(ctrl.ALUOp, opcode->func7, opcode->func3);
     imm = imm_gen(bin);
 
-    ALU(input0, input1, ALU_ctrl, ALU_ret, zero_ret);
+    REG(core->reg_file, (bin >> 15) & 0x1F, 0, &rs1, 1, 0);
+    REG(core->reg_file, (bin >> 20) & 0x1F, 0, &rs2, 1, 0);
+
+    input0 = rs1;
+    input1 = MUX(ctrl.ALUSrc, rs2, imm);
+
+    // (Step 3) Execute
+    ALU(input0, input1, ALU_ctrl, &ALU_ret, &zero_ret);
     
+    // (Step 4) Memory
+    signal_t mem_out;
+
+    MEM(core->data_mem, ALU_ret, rs2, &mem_out, ctrl.MemRead, ctrl.MemWrite);
+
+    // (Step 5) Write Back 
+    signal_t reg_data_in;
+    reg_data_in = MUX(ctrl.MemtoReg, ALU_ret, mem_out);
+    REG(core->reg_file, (bin >> 7) & 0x1F, reg_data_in, NULL, 0, 1);
+
     // (Step N) Increment PC. FIXME Account for branch statement.
     core->PC += 4;
 
@@ -157,6 +176,35 @@ void ALU(signal_t input_0, signal_t input_1, signal_t ALU_ctrl_signal, signal_t 
         else 
             *zero = 0; 
     }
+}
+
+void MEM(byte_t data_mem[], signal_t addr, signal_t data_in, signal_t *data_out, signal_t read, signal_t write)
+{
+    if(!data_mem) return;
+    if(read && data_out)
+    {
+        *data_out = 0;
+        *data_out |= data_mem[addr + 0] << 0;
+        *data_out |= data_mem[addr + 1] << 8;
+        *data_out |= data_mem[addr + 2] << 16;
+        *data_out |= data_mem[addr + 3] << 24;
+    }
+
+    if(write)
+    {
+        data_mem[addr + 0] = (data_in >> 0) & 0xF;
+        data_mem[addr + 1] = (data_in >> 8) & 0xF;
+        data_mem[addr + 2] = (data_in >> 16) & 0xF;
+        data_mem[addr + 3] = (data_in >> 24) & 0xF;
+    }
+}
+
+void REG(register_t reg_file[], signal_t addr, register_t data_in, register_t *data_out, signal_t read, signal_t write)
+{
+    if(!reg_file) return;
+
+    if(read && data_out) *data_out = reg_file[addr];
+    if(write) reg_file[addr] = data_in;
 }
 
 // 2x1 MUX

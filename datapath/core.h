@@ -49,6 +49,10 @@ signal_t ALU_control_unit(signal_t ALUOp, signal_t funct7, signal_t funct3);
 signal_t imm_gen(signal_t input);
 
 void ALU(signal_t input_0, signal_t input_1, signal_t ALU_ctrl_signal, signal_t *ALU_result, signal_t *zero);
+
+void MEM(byte_t data_mem[], signal_t addr, signal_t data_in, signal_t *data_out, signal_t read, signal_t write);
+void REG(register_t reg_file[], signal_t addr, register_t data_in, register_t *data_out, signal_t read, signal_t write);
+
 signal_t MUX(signal_t sel, signal_t input_0, signal_t input_1);
 signal_t Add(signal_t input_0, signal_t input_1);
 signal_t ShiftLeft1(signal_t input);
