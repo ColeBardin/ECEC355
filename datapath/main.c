@@ -18,7 +18,7 @@
 int main(int argc, char **argv)
 {	
     uint64_t PC = 0;
-    ins_list_t *l;
+    i_mem_t *m;
     instruction_t *ins;
 
     if (argc != 2) 
@@ -27,15 +27,16 @@ int main(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
     
-    l = load_instructions(argv[1]);
-    if(l == NULL)
+    m = load_instructions(argv[1]);
+    if(m == NULL)
     {
         fprintf(stderr, "ERROR: Failed to initialize instruction list\n");
         exit(EXIT_FAILURE);
     }
 
-    for(ins = l->head; ins != NULL; ins = ins->next)
+    for(PC = 0; PC / 4 < m->cnt; PC += 4)
     {
+        ins = &m->mem[PC / 4]; 
         printf("Instruction at PC: %llu\n", PC);
         unsigned mask = (1 << 31);
         for(int i = 31; i >= 0; i--)
@@ -47,11 +48,9 @@ int main(int argc, char **argv)
             mask >>= 1;
         }
         puts("");
-
-        PC += 4;
     }
 
-    ins_list_delete(l);
+    i_mem_delete(m);
     exit(EXIT_SUCCESS);
 }
 

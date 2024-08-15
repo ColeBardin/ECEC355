@@ -22,8 +22,7 @@ struct core_s core;
 struct core_s {
     tick_t clk;                         // Core clock
     addr_t PC;                          // Program counter
-    ins_list_t *i_mem;                  // Instruction memory 
-    instruction_t *i_cur;               // Current instruction in LL
+    i_mem_t *ins_mem;                   // Instruction memory 
     byte_t data_mem[MEM_SIZE];          // Data memory
     register_t reg_file[NUM_REGISTERS]; // Register file.
     bool (*tick)(struct core_s *core);  // Simulate function 
@@ -41,7 +40,7 @@ typedef struct control_signals_s {
     signal_t RegWrite;
 } control_signals_t;
 
-core_t *init_core(ins_list_t *i_mem);
+core_t *init_core(i_mem_t *i_mem);
 bool tick_func(core_t *core);
 void print_core_state(core_t *core);
 void print_data_memory(core_t *core, unsigned int start, unsigned int end);

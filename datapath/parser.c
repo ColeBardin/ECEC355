@@ -15,7 +15,7 @@ uint32_t(* parse_funcs[])(opcode_t *opcode, int tokc, char *tokv[]) =
     &parse_UJ_type, 
 };
 
-ins_list_t *load_instructions(const char *trace)
+i_mem_t *load_instructions(const char *trace)
 {
     printf("Loading trace file: %s\n\n", trace);
     FILE *fd = fopen(trace, "r");
@@ -31,12 +31,13 @@ ins_list_t *load_instructions(const char *trace)
     char *tokv[MAXTOKS];
     int tokc;
     uint32_t bin;
-    ins_list_t *l;
+    i_mem_t *m;
+    opcode_t opc;
 
-    l = ins_list_init();
-    if(l == NULL)
+    m = i_mem_init();
+    if(m == NULL)
     {
-        fputs("ERROR: Failed to initialize instruction list", stderr);
+        fputs("ERROR: Failed to initialize instruction memory", stderr);
         exit(EXIT_FAILURE);
     }
 
@@ -50,30 +51,30 @@ ins_list_t *load_instructions(const char *trace)
             exit(EXIT_FAILURE);
         }
 
-        bin = handle_instruction(tokc, tokv);
-        ins_list_add(l, pc, bin);
+        bin = handle_instruction(tokc, tokv, &opc);
+        i_mem_add(m, pc, bin, &opc);
 
         pc += 4;
     }
 
     fclose(fd);
-    return l;
+    return m;
 }
 
-uint32_t handle_instruction(int tokc, char *tokv[])
+uint32_t handle_instruction(int tokc, char *tokv[], opcode_t *opc)
 {
     int opi;
     for(opi = 0; opi < NOPS; opi++)
     {
-        opcode_t *op = &opcode_map[opi];
-        if(!strcmp(tokv[0], op->name))
+        *opc = opcode_map[opi];
+        if(!strcmp(tokv[0], opc->name))
         {
-            if(op->type == NULL_TYPE)
+            if(opc->type == NULL_TYPE)
             {
                 fprintf(stderr, "Library is broken. My bad\n");
                 exit(EXIT_FAILURE);
             }
-            return parse_funcs[op->type](op, tokc, tokv); 
+            return parse_funcs[opc->type](opc, tokc, tokv); 
         }
     }
     fprintf(stderr, "Failed to parse instruction: %s\n", tokv[0]);

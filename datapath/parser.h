@@ -16,8 +16,8 @@ typedef struct
     uint32_t imm;
 } immreg_t;
 
-ins_list_t *load_instructions(const char *trace);
-uint32_t handle_instruction(int tokc, char *tokv[]);
+i_mem_t *load_instructions(const char *trace);
+uint32_t handle_instruction(int tokc, char *tokv[], opcode_t *opc);
 uint32_t parse_R_type(opcode_t *opcode, int tokc, char *tokv[]);
 uint32_t parse_I_type(opcode_t *opcode, int tokc, char *tokv[]);
 uint32_t parse_S_type(opcode_t *opcode, int tokc, char *tokv[]);

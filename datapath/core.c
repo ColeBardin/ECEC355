@@ -1,8 +1,9 @@
 #include "core.h"
+#include <string.h>
 
-core_t *init_core(ins_list_t *i_mem)
+core_t *init_core(i_mem_t *i_mem)
 {
-    if(i_mem == NULL || i_mem->head == NULL)
+    if(i_mem == NULL || i_mem->cnt == 0)
     {
         fprintf(stderr, "ERROR: init_core received invalid i_mem\n");
         return NULL;
@@ -17,9 +18,8 @@ core_t *init_core(ins_list_t *i_mem)
     
     core->clk = 0;
     core->PC = 0;
-    core->i_mem = i_mem;
+    core->ins_mem = i_mem;
     core->tick = tick_func;
-    core->i_cur = i_mem->head;
 
     // FIXME, initialize data memory here.
     memset(core->data_mem, 0, MEM_SIZE);
@@ -36,7 +36,7 @@ bool tick_func(core_t *core)
     // TODO: yeah revert things back to an array for constant time shit. but dont revert back to the old data structures. just use my new ones 
 
     // (Step 1) Fetch instruction from instruction memory
-    unsigned instruction = core->instr_mem->instructions[core->PC / 4].instruction;
+    unsigned instruction = core->ins_mem->mem[core->PC / 4].bin;
     
     // (Step 2) Decode instruction and execute it
     
@@ -45,7 +45,7 @@ bool tick_func(core_t *core)
 
     ++core->clk;
     // Are we reaching the final instruction?
-    if (core->PC > core->instr_mem->last->addr) {
+    if (core->PC / 4 >= core->ins_mem->cnt) {
         return false;
     }
     

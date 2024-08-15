@@ -3,12 +3,16 @@
 
 #include <stdint.h>
 
+#define IMEMSZ 512
 #define NOPS 57
 
+typedef uint64_t tick_t;
+typedef uint64_t addr_t;
 typedef enum ins_type_e ins_type_t;
 typedef struct opcode_s opcode_t;
 typedef struct instruction_s instruction_t;
 typedef struct ins_list_s ins_list_t;
+typedef struct i_mem_s i_mem_t;
 
 enum ins_type_e 
 {
@@ -34,18 +38,18 @@ struct instruction_s
 {
     uint64_t addr;
     uint32_t bin;
-    instruction_t *next;
+    opcode_t opc;
 };
 
-struct ins_list_s
+struct i_mem_s
 {
-    instruction_t *head;
-    instruction_t *tail;
+    uint64_t cnt;
+    instruction_t mem[IMEMSZ];
 };
 
-ins_list_t *ins_list_init();
-int ins_list_delete(ins_list_t *l);
-int ins_list_add(ins_list_t *l, uint64_t addr, uint32_t bin);
+i_mem_t *i_mem_init();
+int i_mem_delete(i_mem_t *m);
+int i_mem_add(i_mem_t *m, uint64_t addr, uint32_t bin, opcode_t *opc);
 
 static opcode_t opcode_map[NOPS] =
 {

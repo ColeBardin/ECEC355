@@ -1,52 +1,37 @@
 #include "instruction.h"
 #include <stdlib.h>
 
-ins_list_t *ins_list_init()
+i_mem_t *i_mem_init()
 {
-    ins_list_t *l;
-    l = malloc(sizeof(ins_list_t));
-    if(l == NULL) return NULL;
-    l->head = NULL;
-    l->tail = NULL;
-
-    return l;
+    i_mem_t *m;
+    m = malloc(sizeof(i_mem_t));
+    if(m == NULL) return NULL;
+    m->cnt= 0;
 }
 
-int ins_list_delete(ins_list_t *l)
+int i_mem_delete(i_mem_t *m)
 {
-    instruction_t *c, *n;
-    if(l == NULL) return 1;
-    if(l->head != NULL)
-    {
-        for(c = l->head; c != NULL; c = n)
-        {
-            n = c->next;
-            free(c);
-        }
-    }
-    free(l);
+    if(m == NULL) return 1;
+    free(m);
     return 0;
 }
 
-int ins_list_add(ins_list_t *l, uint64_t addr, uint32_t bin)
+int i_mem_add(i_mem_t *m, uint64_t addr, uint32_t bin, opcode_t *opc)
 {
-    instruction_t *n, *p;
+    instruction_t *i;
+    uint64_t index;
 
-    if(l == NULL) return 1;
+    if(m == NULL || opc == NULL) return 1;
 
-    n = malloc(sizeof(instruction_t));
-    if(n == NULL) return 2;
+    index = m->cnt;
+    if(index >= IMEMSZ) return 1;
 
-    n->addr = addr;
-    n->bin = bin;
-    n->next = NULL;
+    i = &m->mem[index];
+    i->addr = addr;
+    i->bin = bin;
+    i->opc = *opc;
+    m->cnt++;
 
-    if(l->head == NULL) l->head = n;
-    else
-    {
-        for(p = l->head; p->next != NULL; p = p->next);
-        p->next = n;
-    }
     return 0;
 }
 

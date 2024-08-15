@@ -1,4 +1,4 @@
-SOURCE	:= main.c parser.c instruction.c registers.c
+SOURCE	:= main.c parser.c instruction.c registers.c core.c
 CC	:= gcc
 CCFLAGS := -std=gnu99
 TARGET	:= assembler
