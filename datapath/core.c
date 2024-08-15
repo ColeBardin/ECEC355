@@ -33,12 +33,29 @@ core_t *init_core(i_mem_t *i_mem)
 // FIXME Implement simulatoe main function 
 bool tick_func(core_t *core)
 {
-    // TODO: yeah revert things back to an array for constant time shit. but dont revert back to the old data structures. just use my new ones 
-
     // (Step 1) Fetch instruction from instruction memory
-    unsigned instruction = core->ins_mem->mem[core->PC / 4].bin;
+    instruction_t *ins;
+    uint32_t bin;
+    opcode_t *opcode;
+
+    ins = &core->ins_mem->mem[core->PC / 4];
+    bin = ins->bin;
+    opcode = &ins->opc;
     
     // (Step 2) Decode instruction and execute it
+    control_signals_t ctrl;
+    signal_t ALU_ctrl;
+    signal_t imm;
+    signal_t input0;
+    signal_t input1;
+    signal_t ALU_ret;
+    signal_t zero_ret;
+
+    control_unit(opcode->code, &ctrl);
+    ALU_ctrl = ALU_control_unit(ctrl.ALUOp, opcode->func7, opcode->func3);
+    imm = imm_gen(bin);
+
+    ALU(input0, input1, ALU_ctrl, ALU_ret, zero_ret);
     
     // (Step N) Increment PC. FIXME Account for branch statement.
     core->PC += 4;
@@ -56,7 +73,8 @@ bool tick_func(core_t *core)
 void control_unit(signal_t input, control_signals_t *signals)
 {
     // For R-type
-    if (input == 51) {
+    if(input == 0x33) 
+    {
         signals->ALUSrc = 0;
         signals->MemtoReg = 0;
         signals->RegWrite = 1;
@@ -65,15 +83,61 @@ void control_unit(signal_t input, control_signals_t *signals)
         signals->Branch = 0;
         signals->ALUOp = 2;
     }
+    else if(input == 0x23) // Store instruction
+    {
+        signals->ALUSrc = 1;
+        signals->MemtoReg = 0;
+        signals->RegWrite = 0;
+        signals->MemRead = 0;
+        signals->MemWrite = 1;
+        signals->Branch = 0;
+        signals->ALUOp = 0;
+    }
+    else if(input == 0x03) // Load instruction
+    {
+        signals->ALUSrc = 1;
+        signals->MemtoReg = 1;
+        signals->RegWrite = 1;
+        signals->MemRead = 1;
+        signals->MemWrite = 0;
+        signals->Branch = 0;
+        signals->ALUOp = 0;
+    }
+    else if(input == 0x13) // SLLI
+    {
+        signals->ALUSrc = 1;
+        signals->MemtoReg = 0;
+        signals->RegWrite = 1;
+        signals->MemRead = 0;
+        signals->MemWrite = 0;
+        signals->Branch = 0;
+        signals->ALUOp = 0; 
+    }
+    else if(input == 0x63) // SB type
+    {
+        signals->ALUSrc = 0;
+        signals->MemtoReg = 0;
+        signals->RegWrite = 0;
+        signals->MemRead = 0;
+        signals->MemWrite = 0;
+        signals->Branch = 1;
+        signals->ALUOp = 1;
+    }
 }
 
 // FIXME Implement ALU control unit. Refer to Figure 4.12 in textbook.
 signal_t ALU_control_unit(signal_t ALUOp, signal_t Funct7, signal_t Funct3)
 {
-    // For add
-    if (ALUOp == 2 && Funct7 == 0 && Funct3 == 0) {
-        return 2;
+    if(ALUOp == 0) return 2;
+    if(ALUOp == 1) return 6;
+    if(ALUOp == 2)
+    {
+        if(Funct7 == 0 && Funct3 == 0)  return 2;
+        if(Funct7 == 0x20 && Funct3 == 0) return 6;
+        if(Funct7 == 0 && Funct3 == 7) return 0;
+        if(Funct7 == 0 && Funct3 == 6) return 1;
     }
+    fputs("ALU Control Unit failed to parse signal\n", stderr); 
 }
 
 // FIXME Implement immediate generation.
@@ -98,10 +162,7 @@ void ALU(signal_t input_0, signal_t input_1, signal_t ALU_ctrl_signal, signal_t 
 // 2x1 MUX
 signal_t MUX(signal_t sel, signal_t input_0, signal_t input_1)
 {
-    if (sel == 0)  
-        return input_0;
-    else 
-        return input_1;
+    return sel ? input_1 : input_0;
 }
 
 // Add

@@ -37,7 +37,7 @@ i_mem_t *load_instructions(const char *trace)
     m = i_mem_init();
     if(m == NULL)
     {
-        fputs("ERROR: Failed to initialize instruction memory", stderr);
+        fputs("ERROR: Failed to initialize instruction memory\n", stderr);
         exit(EXIT_FAILURE);
     }
 
@@ -47,7 +47,7 @@ i_mem_t *load_instructions(const char *trace)
         tokc = tokenize(line, tokv, MAXTOKS, ", \n");
         if(tokc == 0) 
         {
-            fprintf(stderr, "Failed to tokenize line\n");
+            fputs("Failed to tokenize line\n", stderr);
             exit(EXIT_FAILURE);
         }
 
@@ -66,9 +66,9 @@ uint32_t handle_instruction(int tokc, char *tokv[], opcode_t *opc)
     int opi;
     for(opi = 0; opi < NOPS; opi++)
     {
-        *opc = opcode_map[opi];
-        if(!strcmp(tokv[0], opc->name))
+        if(!strcmp(tokv[0], opcode_map[opi].name))
         {
+            *opc = opcode_map[opi];
             if(opc->type == NULL_TYPE)
             {
                 fprintf(stderr, "Library is broken. My bad\n");
@@ -96,7 +96,7 @@ uint32_t parse_R_type(opcode_t *opcode, int tokc, char *tokv[])
 
     if(tokc != 4 || tokv == NULL || opcode == NULL)
     {
-        fputs("ERROR: cmon man", stderr);
+        fputs("ERROR: cmon man\n", stderr);
         exit(EXIT_FAILURE);
     }
 
@@ -110,6 +110,7 @@ uint32_t parse_R_type(opcode_t *opcode, int tokc, char *tokv[])
     rs2 = immreg.reg;
 
     // Print the tokens 
+#if VERBOSE == 1
     puts("R-Type");
     printf("opcode: 0x%x\n", opc);
     printf("rd: %d\n", rd);
@@ -118,6 +119,7 @@ uint32_t parse_R_type(opcode_t *opcode, int tokc, char *tokv[])
     printf("rs2: %d\n", rs2);
     printf("func7: 0x%x\n", func7);
     puts("");
+#endif
 
     // Construct instruction
     bin |= opc;
@@ -145,7 +147,7 @@ uint32_t parse_I_type(opcode_t *opcode, int tokc, char *tokv[])
 
     if(tokc < 3 || tokc > 4 || tokv == NULL || opcode == NULL)
     {
-        fputs("ERROR: cmon man", stderr);
+        fputs("ERROR: cmon man\n", stderr);
         exit(EXIT_FAILURE);
     }
 
@@ -167,10 +169,11 @@ uint32_t parse_I_type(opcode_t *opcode, int tokc, char *tokv[])
     }
     else if((!imm_found && tokc == 3) || (imm_found && tokc == 4))
     {
-        fputs("ERROR: incorrect argument format for I-type", stderr);
+        fputs("ERROR: incorrect argument format for I-type\n", stderr);
         exit(EXIT_FAILURE);
     }
 
+#if VERBOSE == 1
     puts("I-Type");
     printf("opcode: 0x%x\n", opc);
     printf("rd: %u\n", rd);
@@ -178,6 +181,7 @@ uint32_t parse_I_type(opcode_t *opcode, int tokc, char *tokv[])
     printf("rs1: %u\n", rs1);
     printf("imm12: %u\n", imm12);
     puts("");
+#endif
 
     bin = 0;
     bin |= opc;
@@ -190,9 +194,56 @@ uint32_t parse_I_type(opcode_t *opcode, int tokc, char *tokv[])
 }
 
 uint32_t parse_S_type(opcode_t *opcode, int tokc, char *tokv[])
-{
-    fputs("WARNING: S-Type not implemented yet, filling 0", stderr);
-    return 0;
+{    
+    immreg_t immreg;
+    int ttype;
+    uint32_t bin;
+    uint32_t opc = opcode->code;
+    uint32_t func3 = opcode->func3;
+    uint32_t rs1 = 0;
+    uint32_t rs2 = 0;
+    uint32_t imm12 = 0;
+    uint8_t imm_found = 0;    
+
+    if(tokc != 3 || tokv == NULL || opcode == NULL)
+    {
+        fputs("ERROR: cmon man\n", stderr);
+        exit(EXIT_FAILURE);
+    }
+
+    ttype = get_reg_imm(tokv[1], &immreg);
+    rs1 = immreg.reg;
+
+    ttype = get_reg_imm(tokv[2], &immreg);
+    rs2 = immreg.reg;
+    if(ttype != 2)
+    {
+        fputs("ERROR: Invalid syntax for S-Type ins\n", stderr);
+        exit(EXIT_FAILURE);
+    }
+    imm12 = immreg.imm;
+
+#if VERBOSE == 1
+    puts("S-Type");
+    printf("opcode: 0x%x\n", opc);
+    printf("funt3: 0x%x\n", func3);
+    printf("rs1: %u\n", rs1);
+    printf("rs2: %u\n", rs2);
+    printf("imm12: 0x%x\n", imm12);
+    puts("");
+#endif
+
+    uint32_t imm_4_0 = imm12 & 0x1F;
+    uint32_t imm_11_5 = (imm12 >> 5) & 0x7F;
+
+    bin = 0;
+    bin |= opc;
+    bin |= (imm_4_0 << 7);
+    bin |= (rs1 << 15);
+    bin |= (rs2 << 20);
+    bin |= (imm_11_5 << 25);
+
+    return bin;
 }
 
 uint32_t parse_SB_type(opcode_t *opcode, int tokc, char *tokv[])
@@ -209,7 +260,7 @@ uint32_t parse_SB_type(opcode_t *opcode, int tokc, char *tokv[])
 
     if(tokc != 4 || tokv == NULL || opcode == NULL)
     {
-        fputs("ERROR: cmon man", stderr);
+        fputs("ERROR: cmon man\n", stderr);
         exit(EXIT_FAILURE);
     }
 
@@ -222,6 +273,7 @@ uint32_t parse_SB_type(opcode_t *opcode, int tokc, char *tokv[])
     ttype = get_reg_imm(tokv[3], &immreg);
     imm12 = immreg.imm;
 
+#if VERBOSE == 1
     puts("SB-Type");
     printf("opcode: 0x%x\n", opc);
     printf("funt3: 0x%x\n", func3);
@@ -229,6 +281,7 @@ uint32_t parse_SB_type(opcode_t *opcode, int tokc, char *tokv[])
     printf("rs2: %u\n", rs2);
     printf("imm12: 0x%x\n", imm12);
     puts("");
+#endif
 
     uint32_t imm_4_1 = (imm12 >> 1) & 0xF;
     uint32_t imm_10_5 = (imm12 >> 5) & 0x3F;
@@ -250,19 +303,19 @@ uint32_t parse_SB_type(opcode_t *opcode, int tokc, char *tokv[])
 
 uint32_t parse_U_type(opcode_t *opcode, int tokc, char *tokv[])
 {
-    fputs("WARNING: U-Type not implemented yet, filling 0", stderr);
+    fputs("WARNING: U-Type not implemented yet, filling 0\n", stderr);
     return 0;
 }
 
 uint32_t parse_UJ_type(opcode_t *opcode, int tokc, char *tokv[])
 {
-    fputs("WARNING: UJ-Type not implemented yet, filling 0", stderr);
+    fputs("WARNING: UJ-Type not implemented yet, filling 0\n", stderr);
     return 0;
 }
 
 uint32_t parse_NULL_type(opcode_t *opcode, int tokc, char *tokv[])
 {
-    fputs("ERROR: Tried to parse NULL type. Something is very wrong", stderr);
+    fputs("ERROR: Tried to parse NULL type. Something is very wrong\n", stderr);
     exit(EXIT_FAILURE);
 }
 
@@ -279,7 +332,7 @@ int get_reg_imm(char *tok, immreg_t *dest)
     {
         *p = '\0';
         r = p + 1;
-        r[strlen(r) - 2] = '\0';
+        r[strlen(r) - 1] = '\0';
         dest->imm = atoi(tok);
         dest->reg = get_register_number(r);
         r[strlen(r)] = ')';
@@ -316,13 +369,8 @@ int tokenize(char *s, char *tokv[], int maxtokv, char *delim)
     tokv[i] = strtok(s, delim); 
     while(tokv[i++] != NULL)
     {
-        if(i >= maxtokv - 1){
-            tokv[i] = NULL;
-        }
-        else
-        {
-            tokv[i] = strtok(NULL, delim);
-        }
+        if(i >= maxtokv - 1) tokv[i] = NULL;
+        else tokv[i] = strtok(NULL, delim);
     }
     return i - 1;
 }

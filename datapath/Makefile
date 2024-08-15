@@ -1,7 +1,9 @@
+VERBOSE ?= 0
 SOURCE	:= main.c parser.c instruction.c registers.c core.c
 CC	:= gcc
 CCFLAGS := -std=gnu99
-TARGET	:= assembler
+CCFLAGS += -DVERBOSE=$(VERBOSE)
+TARGET	:= RISCV_core
 
 all: $(TARGET)
 

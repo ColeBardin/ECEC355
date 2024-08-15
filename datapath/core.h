@@ -12,13 +12,13 @@
 #define MEM_SIZE 1024       // Size of memory in bytes 
 #define NUM_REGISTERS 32    // Size of register file 
 
-
 typedef uint8_t byte_t;
 typedef int64_t signal_t;
 typedef int64_t register_t;
 
+typedef struct core_s core_t;
+
 // Definition of the RISC-V core
-struct core_s core;
 struct core_s {
     tick_t clk;                         // Core clock
     addr_t PC;                          // Program counter
@@ -27,7 +27,6 @@ struct core_s {
     register_t reg_file[NUM_REGISTERS]; // Register file.
     bool (*tick)(struct core_s *core);  // Simulate function 
 };
-typedef struct core_s core_t;
 
 // Definition of the various control signals
 typedef struct control_signals_s {
@@ -44,12 +43,15 @@ core_t *init_core(i_mem_t *i_mem);
 bool tick_func(core_t *core);
 void print_core_state(core_t *core);
 void print_data_memory(core_t *core, unsigned int start, unsigned int end);
+
 void control_unit(signal_t input, control_signals_t *signals);
 signal_t ALU_control_unit(signal_t ALUOp, signal_t funct7, signal_t funct3);
 signal_t imm_gen(signal_t input);
+
 void ALU(signal_t input_0, signal_t input_1, signal_t ALU_ctrl_signal, signal_t *ALU_result, signal_t *zero);
 signal_t MUX(signal_t sel, signal_t input_0, signal_t input_1);
 signal_t Add(signal_t input_0, signal_t input_1);
 signal_t ShiftLeft1(signal_t input);
 
 #endif
+
