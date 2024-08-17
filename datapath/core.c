@@ -1,5 +1,6 @@
 #include "core.h"
 #include <string.h>
+#include <stdio.h>
 
 core_t *init_core(i_mem_t *i_mem)
 {
@@ -21,44 +22,44 @@ core_t *init_core(i_mem_t *i_mem)
     core->ins_mem = i_mem;
     core->tick = tick_func;
 
-    // FIXME, initialize data memory here.
     memset(core->data_mem, 0, MEM_SIZE);
-
-    // FIXME, initialize register file here.
-    memset(core->reg_file, 0, NUM_REGISTERS * 8);
+    memset(core->reg_file, 0, NUM_REGISTERS * sizeof(register_t));
 
     return core;
 }
 
-// FIXME Implement simulatoe main function 
 bool tick_func(core_t *core)
 {
-    // (Step 1) Fetch instruction from instruction memory
+    // (Step 1) Instruction Fetch
     instruction_t *ins;
     uint32_t bin;
-    opcode_t *opcode;
 
     ins = &core->ins_mem->mem[core->PC / 4];
     bin = ins->bin;
-    opcode = &ins->opc;
     
-    // (Step 2) Decode instruction and execute it
+    // (Step 2) Instruction Decode
+    byte_t opcode, func3, func7;
     control_signals_t ctrl;
     signal_t ALU_ctrl;
     signal_t imm;
-    signal_t input0;
-    signal_t input1;
-    signal_t ALU_ret;
-    signal_t zero_ret;
-    signal_t rs1;
-    signal_t rs2;
+    signal_t input0, input1, ALU_ret, zero_ret;
+    signal_t rd, rs1, rs2;
+    signal_t rd_addr, rs1_addr, rs2_addr;
 
-    control_unit(opcode->code, &ctrl);
-    ALU_ctrl = ALU_control_unit(ctrl.ALUOp, opcode->func7, opcode->func3);
+    opcode = bin & 0x7F;
+    func3 = (bin >> 12) & 0x7;
+    func7 = (opcode == 0x33 || opcode == 0x3B) ? (bin >> 25) & 0x7F : 0;
+
+    control_unit(opcode, &ctrl);
+    ALU_ctrl = ALU_control_unit(ctrl.ALUOp, func7, func3);
     imm = imm_gen(bin);
 
-    REG(core->reg_file, (bin >> 15) & 0x1F, 0, &rs1, 1, 0);
-    REG(core->reg_file, (bin >> 20) & 0x1F, 0, &rs2, 1, 0);
+    rd_addr = (bin >> 7) & 0x1F;
+    rs1_addr = (bin >> 15) & 0x1F;
+    rs2_addr = (bin >> 20) & 0x1F;
+
+    REG(core->reg_file, rs1_addr, 0, &rs1, 1, 0);
+    REG(core->reg_file, rs2_addr, 0, &rs2, 1, 0);
 
     input0 = rs1;
     input1 = MUX(ctrl.ALUSrc, rs2, imm);
@@ -74,21 +75,44 @@ bool tick_func(core_t *core)
     // (Step 5) Write Back 
     signal_t reg_data_in;
     reg_data_in = MUX(ctrl.MemtoReg, ALU_ret, mem_out);
-    REG(core->reg_file, (bin >> 7) & 0x1F, reg_data_in, NULL, 0, 1);
+    REG(core->reg_file, rd_addr, reg_data_in, NULL, 0, ctrl.RegWrite);
 
-    // (Step N) Increment PC. FIXME Account for branch statement.
-    core->PC += 4;
+#if VERBOSE == 1
+    printf("PC: %d\n", core->PC);
+    printf("opcode: 0x%x\n", opcode);
+    printf("func3: %d\n", func3);
+    printf("func7: %d\n", func7);
+    printf("rd: x%d\n", rd_addr);
+    printf("rs1: x%d = %d\n", rs1_addr, rs1);
+    printf("rs2: x%d = %d\n", rs2_addr, rs2);
+    printf("imm: %d\n", imm);
+    printf("ALU SRC: %d\n", ctrl.ALUSrc);
+    printf("branch: %d\n", ctrl.Branch);
+    printf("ALU ctrl: %d\n", ALU_ctrl);
+    printf("input0: %d\n", input0);
+    printf("input1: %d\n", input1);
+    printf("alu zero: %d\n", zero_ret);
+    printf("ALU ret: %d\n", ALU_ret);
+    if(ctrl.MemWrite) printf("MEM Write: %d -> @%d\n", rs2, ALU_ret);
+    if(ctrl.MemRead) printf("MEM Read: %d <- @%d\n", mem_out, ALU_ret);
+    if(ctrl.RegWrite) printf("REG Write: %d -> x%d FM:%d\n", reg_data_in, rd_addr, ctrl.MemtoReg);
+#endif
 
-    ++core->clk;
+    // (Step 6) Increment PC or Branch
+    core->PC = Add(core->PC, MUX(ctrl.Branch && zero_ret, 4, imm));
+
+#if VERBOSE == 1
+    printf("NEW PC: %d\n", core->PC);
+    puts("");
+#endif
+
+    core->clk++;
     // Are we reaching the final instruction?
-    if (core->PC / 4 >= core->ins_mem->cnt) {
-        return false;
-    }
+    if (core->PC / 4 >= core->ins_mem->cnt) return false;
     
     return true;
 }
 
-// FIXME Implement the control Unit. Refer to Figure 4.18 in textbook.
 void control_unit(signal_t input, control_signals_t *signals)
 {
     // For R-type
@@ -122,7 +146,7 @@ void control_unit(signal_t input, control_signals_t *signals)
         signals->Branch = 0;
         signals->ALUOp = 0;
     }
-    else if(input == 0x13) // SLLI
+    else if(input == 0x13) // I-Type
     {
         signals->ALUSrc = 1;
         signals->MemtoReg = 0;
@@ -130,7 +154,7 @@ void control_unit(signal_t input, control_signals_t *signals)
         signals->MemRead = 0;
         signals->MemWrite = 0;
         signals->Branch = 0;
-        signals->ALUOp = 0; 
+        signals->ALUOp = 2; 
     }
     else if(input == 0x63) // SB type
     {
@@ -144,61 +168,113 @@ void control_unit(signal_t input, control_signals_t *signals)
     }
 }
 
-// FIXME Implement ALU control unit. Refer to Figure 4.12 in textbook.
 signal_t ALU_control_unit(signal_t ALUOp, signal_t Funct7, signal_t Funct3)
 {
-    if(ALUOp == 0) return 2;
-    if(ALUOp == 1) return 6;
+    if(ALUOp == 0) return ALUCTRL_ADD;
+    if(ALUOp == 1) return ALUCTRL_SUB;
     if(ALUOp == 2)
     {
-        if(Funct7 == 0 && Funct3 == 0)  return 2;
-        if(Funct7 == 0x20 && Funct3 == 0) return 6;
-        if(Funct7 == 0 && Funct3 == 7) return 0;
-        if(Funct7 == 0 && Funct3 == 6) return 1;
+        if(Funct7 == 0 && Funct3 == 0)  return ALUCTRL_ADD;
+        if(Funct7 == 0 && Funct3 == 1)  return ALUCTRL_SLL;
+        if(Funct7 == 0 && Funct3 == 7) return ALUCTRL_AND;
+        if(Funct7 == 0 && Funct3 == 6) return ALUCTRL_OR;
+        if(Funct7 == 0x20 && Funct3 == 0) return ALUCTRL_SUB;
     }
     fputs("ALU Control Unit failed to parse signal\n", stderr); 
 }
 
-// FIXME Implement immediate generation.
 signal_t imm_gen(signal_t input)
 {
+    signal_t im = 0;
+    byte_t opcode = input & 0x7F;
 
+    if(opcode == 0x33 || opcode == 0x3B) return 0;
+    if(opcode == 0x03 || opcode == 0x13)
+    {
+        im = input >> 20;
+        if(im & (1 << 11)) im |= ~(0xFFF);
+        return im;
+    }
+    if(opcode == 0x23)
+    {
+        im = ((input >> 7) & 0x1F) | ((input >> 20) & 0xFE0);
+        if(im & (1 << 11)) im |= ~(0xFFF);
+        return im;
+    }
+    if(opcode == 0x63)
+    {
+        signal_t i_12 = (input >> 31) & 0x1;
+        signal_t i_11 = (input >> 7) & 0x1;
+        signal_t i_10_5 = (input >> 25) & 0x3F;
+        signal_t i_4_1 = (input >> 8) & 0xF;
+
+        im |= i_12 << 12;
+        im |= i_11 << 11;
+        im |= i_10_5 << 5; 
+        im |= i_4_1 << 1;
+        im |= i_12 ? ~(0x1FFF) : 0;
+        return im;
+    }
+    puts("BOY WHAT THE HEEEELLLLLLL");
+    return 0;
 }
 
-// FIXME Implement ALU operations.
 void ALU(signal_t input_0, signal_t input_1, signal_t ALU_ctrl_signal, signal_t *ALU_result, signal_t *zero)
 {
-    // Addition
-    if (ALU_ctrl_signal == 2) {
-        *ALU_result = (input_0 + input_1);
-        if (*ALU_result == 0) 
-            *zero = 1; 
-        else 
-            *zero = 0; 
+    if(!ALU_result || !zero) 
+    {
+        fputs("ERROR: ALU received NULL pointer\n", stderr);
+        exit(EXIT_FAILURE);
     }
+
+    switch(ALU_ctrl_signal)
+    {
+        case ALUCTRL_AND:
+            *ALU_result = input_0 & input_1;
+            break;
+        case ALUCTRL_OR:
+            *ALU_result = input_0 | input_1;
+            break;
+        case ALUCTRL_ADD:
+            *ALU_result = input_0 + input_1;
+            break;
+        case ALUCTRL_SUB:
+            *ALU_result = input_0 - input_1;
+            break;
+        case ALUCTRL_SRL:
+            *ALU_result = input_0 >> input_1;
+            break;
+        case ALUCTRL_SLL:
+            *ALU_result = input_0 << input_1;
+            break;
+        default:
+            fputs("ERROR: Unrecognized ALUCTRL\n", stderr);
+            break;
+    }
+
+    *zero = *ALU_result == 0;
 }
 
+// Perform read and write memory operations
 void MEM(byte_t data_mem[], signal_t addr, signal_t data_in, signal_t *data_out, signal_t read, signal_t write)
 {
-    if(!data_mem) return;
+    if(!data_mem)
+    {
+        fputs("ERROR: MEM received a NULL pointer\n", stderr);
+        exit(EXIT_FAILURE);
+    }
+
     if(read && data_out)
     {
-        *data_out = 0;
-        *data_out |= data_mem[addr + 0] << 0;
-        *data_out |= data_mem[addr + 1] << 8;
-        *data_out |= data_mem[addr + 2] << 16;
-        *data_out |= data_mem[addr + 3] << 24;
+        uint32_t out;
+        memcpy(&out, &data_mem[addr], 1);
+        *data_out = out;
     }
 
-    if(write)
-    {
-        data_mem[addr + 0] = (data_in >> 0) & 0xF;
-        data_mem[addr + 1] = (data_in >> 8) & 0xF;
-        data_mem[addr + 2] = (data_in >> 16) & 0xF;
-        data_mem[addr + 3] = (data_in >> 24) & 0xF;
-    }
+    if(write) memcpy(&data_mem[addr], &data_in, 4);
 }
 
+// Perform read and write register operations
 void REG(register_t reg_file[], signal_t addr, register_t data_in, register_t *data_out, signal_t read, signal_t write)
 {
     if(!reg_file) return;

@@ -212,10 +212,10 @@ uint32_t parse_S_type(opcode_t *opcode, int tokc, char *tokv[])
     }
 
     ttype = get_reg_imm(tokv[1], &immreg);
-    rs1 = immreg.reg;
+    rs2 = immreg.reg;
 
     ttype = get_reg_imm(tokv[2], &immreg);
-    rs2 = immreg.reg;
+    rs1 = immreg.reg;
     if(ttype != 2)
     {
         fputs("ERROR: Invalid syntax for S-Type ins\n", stderr);

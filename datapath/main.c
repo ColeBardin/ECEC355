@@ -9,7 +9,7 @@
  * Modified by: Naga Kandasamy
  * Date: August 8, 2024
  *
- * Student name(s):
+ * Student name(s): Cole Bardin
  * Date:
 
  */
@@ -39,7 +39,11 @@ int main(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
 
-    core_t* core = init_core(m);
+#if VERBOSE == 1
+    puts("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+#endif
+
+    core_t *core = init_core(m);
     if(core == NULL)
     {
         fprintf(stderr, "ERROR: Failed to initialize core\n");

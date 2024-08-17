@@ -4,10 +4,8 @@
 #include "instruction.h"
 
 #include <stdbool.h>
-#include <stdlib.h>
-#include <stdio.h>
+#include <stdlib.h> 
 #include <stdint.h>
-
 #define BOOL bool
 #define MEM_SIZE 1024       // Size of memory in bytes 
 #define NUM_REGISTERS 32    // Size of register file 
@@ -17,6 +15,20 @@ typedef int64_t signal_t;
 typedef int64_t register_t;
 
 typedef struct core_s core_t;
+typedef enum aluctrl_e aluctrl_t;
+
+enum aluctrl_e
+{
+    ALUCTRL_AND = 0,  // 0000
+    ALUCTRL_OR,       // 0001
+    ALUCTRL_ADD,      // 0010
+    ALUCTRL_SUB = 6,  // 0110
+    ALUCTRL_LT,       // 0111
+    ALUCTRL_SRL,      // 1000
+    ALUCTRL_SLL,      // 1001
+    ALUCTRL_SRA = 10, // 1010
+    ALUCTRL_XOR = 13  // 1101
+};
 
 // Definition of the RISC-V core
 struct core_s {
