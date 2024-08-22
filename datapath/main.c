@@ -7,7 +7,7 @@
  *  $./RISCV_core <trace file>
  *
  * Modified by: Naga Kandasamy
- * Date: August 8, 2024
+ * Date: August 23, 2024
  *
  * Student name(s): Cole Bardin
  * Date:
