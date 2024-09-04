@@ -30,13 +30,12 @@ core_t *init_core(i_mem_t *i_mem)
 
 bool tick_func(core_t *core)
 {
-    // Make copy of stage registers
+    // Make copy of inter-stage registers
     IF_ID_t IF_ID = core->IF_ID;
     ID_EX_t ID_EX = core->ID_EX;
     EX_MEM_t EX_MEM = core->EX_MEM;
     MEM_WB_t MEM_WB = core->MEM_WB;
-    //PC_reg_t PC_reg = core->PC_reg;
-    // Forward necessary data
+    // (Step 0) Determine data forwarding
     forwarding_unit(&core->ID_EX, &core->EX_MEM, &core->MEM_WB, &core->fwd_ctrl);
     // (Step 1) Instruction Fetch
     IF(core->PC, core->ins_mem, &core->IF_ID);
@@ -48,7 +47,7 @@ bool tick_func(core_t *core)
     MEM(&EX_MEM, core->data_mem, &core->MEM_WB, &core->fwd_ctrl);
     // (Step 5) Write Back 
     WB(&MEM_WB, core->reg_file);
-    // (Step 6) Increment PC or Branch
+    // (Step 6) Increment PC or Branch from EX
     PC(&core->PC_reg, &core->PC);
 
     core->clk++;
@@ -317,7 +316,7 @@ void forwarding_unit(ID_EX_t *ID_EX, EX_MEM_t *EX_MEM, MEM_WB_t *MEM_WB, fwd_ctr
         if(ID_EX->rs2_addr == MEM_WB->rd_addr) fwd_ctrl->fwdB = 2;
     }
     // Detect EX forwarding
-    if(EX_MEM->RegWrite && ID_EX->valid && EX_MEM->valid)
+    if(EX_MEM->RegWrite && ID_EX->valid && EX_MEM->valid && !EX_MEM->MemRead)
     {
         if(ID_EX->rs1_addr == EX_MEM->rd_addr) fwd_ctrl->fwdA = 1;
         if(ID_EX->rs2_addr == EX_MEM->rd_addr) fwd_ctrl->fwdB = 1;
