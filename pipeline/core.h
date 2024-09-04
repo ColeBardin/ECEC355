@@ -93,9 +93,10 @@ typedef struct PC_reg_s
 
 typedef struct HDU_ctrl_s
 {
-    byte_t PCWrite;
-    byte_t IF_ID_Write;
-    byte_t ctrl_clear;
+    bool stall;
+    bool PCWrite;
+    bool IF_ID_Write;
+    bool ctrl_clear;
 } HDU_ctrl_t;
 
 typedef struct fwd_ctrl_s
@@ -117,19 +118,20 @@ struct core_s {
     EX_MEM_t EX_MEM;
     MEM_WB_t MEM_WB;
     PC_reg_t PC_reg;
+    HDU_ctrl_t HDU_ctrl;
     fwd_ctrl_t fwd_ctrl;
     bool (*tick)(struct core_s *core);  // Simulate function 
 };
 
 core_t *init_core(i_mem_t *i_mem);
 bool tick_func(core_t *core);
-void hazard_detection_unit(register_t D_rs1_addr, register_t D_rs2_addr, register_t E_rd_addr, signal_t D_MemRead, HDU_ctrl_t *HDU_ctrl); 
-void IF(addr_t PC, i_mem_t *ins_mem, IF_ID_t *IF_ID);
-void ID(IF_ID_t *IF_ID, register_t reg_file[], ID_EX_t *ID_EX);
-void EX(ID_EX_t *ID_EX, fwd_ctrl_t *fwd_ctrl, EX_MEM_t *EX_MEM, PC_reg_t *PC_reg);
+void hazard_detection_unit(ID_EX_t *ID_EX, EX_MEM_t *EX_MEM, HDU_ctrl_t *HDU_ctrl); 
+void IF(addr_t PC, i_mem_t *ins_mem, HDU_ctrl_t *HDU_ctrl, IF_ID_t *IF_ID);
+void ID(IF_ID_t *IF_ID, register_t reg_file[], HDU_ctrl_t *HDU_ctrl, ID_EX_t *ID_EX);
+void EX(ID_EX_t *ID_EX, fwd_ctrl_t *fwd_ctrl, HDU_ctrl_t *HDU_ctrl, EX_MEM_t *EX_MEM, PC_reg_t *PC_reg);
 void MEM(EX_MEM_t *EX_MEM, byte_t data_mem[], MEM_WB_t *MEM_WB, fwd_ctrl_t *fwd_ctrl);
 void WB(MEM_WB_t *MEM_WB, register_t reg_file[]);
-void PC(PC_reg_t *PC_reg, addr_t *PC);
+void PC(PC_reg_t *PC_reg, addr_t *PC, HDU_ctrl_t *HDU_ctrl);
 bool running(core_t *core); 
 void forwarding_unit(ID_EX_t *ID_EX, EX_MEM_t *EX_MEM, MEM_WB_t *MEM_WB, fwd_ctrl_t *fwd_ctrl);
 void control_unit(signal_t input, control_signals_t *signals);

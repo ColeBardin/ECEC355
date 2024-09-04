@@ -35,20 +35,22 @@ bool tick_func(core_t *core)
     ID_EX_t ID_EX = core->ID_EX;
     EX_MEM_t EX_MEM = core->EX_MEM;
     MEM_WB_t MEM_WB = core->MEM_WB;
-    // (Step 0) Determine data forwarding
-    forwarding_unit(&core->ID_EX, &core->EX_MEM, &core->MEM_WB, &core->fwd_ctrl);
+    // (Step 0) Determine data hazards & forwarding
+    hazard_detection_unit(&ID_EX, &EX_MEM, &core->HDU_ctrl);
+    forwarding_unit(&ID_EX, &EX_MEM, &MEM_WB, &core->fwd_ctrl);
     // (Step 1) Instruction Fetch
-    IF(core->PC, core->ins_mem, &core->IF_ID);
-    // (Step 2) Instruction Decode
-    ID(&IF_ID, core->reg_file, &core->ID_EX);
-    // (Step 3) Execute
-    EX(&ID_EX, &core->fwd_ctrl, &core->EX_MEM, &core->PC_reg);
-    // (Step 4) Memory
-    MEM(&EX_MEM, core->data_mem, &core->MEM_WB, &core->fwd_ctrl);
+    IF(core->PC, core->ins_mem, &core->HDU_ctrl, &core->IF_ID);
     // (Step 5) Write Back 
     WB(&MEM_WB, core->reg_file);
+    // (Step 2) Instruction Decode
+    if(&core->HDU_ctrl.stall) IF_ID = core->IF_ID;
+    ID(&IF_ID, core->reg_file, &core->HDU_ctrl, &core->ID_EX);
+    // (Step 3) Execute
+    EX(&ID_EX, &core->fwd_ctrl, &core->HDU_ctrl, &core->EX_MEM, &core->PC_reg);
+    // (Step 4) Memory
+    MEM(&EX_MEM, core->data_mem, &core->MEM_WB, &core->fwd_ctrl);
     // (Step 6) Increment PC or Branch from EX
-    PC(&core->PC_reg, &core->PC);
+    PC(&core->PC_reg, &core->PC, &core->HDU_ctrl);
 
     core->clk++;
 #if VERBOSE == 1
@@ -60,17 +62,36 @@ bool tick_func(core_t *core)
     return true;
 }
 
-void hazard_detection_unit(register_t D_rs1_addr, register_t D_rs2_addr, register_t E_rd_addr, signal_t D_MemRead, HDU_ctrl_t *HDU_ctrl)
+void hazard_detection_unit(ID_EX_t *ID_EX, EX_MEM_t *EX_MEM, HDU_ctrl_t *HDU_ctrl)
 {
-    
+    HDU_ctrl->stall = 0;
+    HDU_ctrl->PCWrite = 1;
+    HDU_ctrl->IF_ID_Write = 1;
+    HDU_ctrl->ctrl_clear = 0;
+
+    if(!ID_EX->valid || !EX_MEM->valid) return;
+    if(!EX_MEM->MemRead || !EX_MEM->RegWrite) return;
+    if(ID_EX->rs1_addr == EX_MEM->rd_addr || ID_EX->rs2_addr == EX_MEM->rd_addr)
+    {
+        HDU_ctrl->stall = 1;
+        HDU_ctrl->PCWrite = 0;
+        HDU_ctrl->IF_ID_Write = 0;
+        HDU_ctrl->ctrl_clear = 1;
+#if VERBOSE == 1
+    puts("STALL\n");
+#endif
+    }
     return;
 }
 
-void IF(addr_t PC, i_mem_t *ins_mem, IF_ID_t *IF_ID)
+void IF(addr_t PC, i_mem_t *ins_mem, HDU_ctrl_t *HDU_ctrl, IF_ID_t *IF_ID)
 {
     uint32_t bin;
     bool valid;
+    bool IF_ID_Write = HDU_ctrl->IF_ID_Write;
+    bool stall = HDU_ctrl->stall;
     
+    if(!IF_ID_Write) PC -= 4;
     if(PC / 4 >= ins_mem->cnt)
     {
         bin = 0;
@@ -90,11 +111,13 @@ void IF(addr_t PC, i_mem_t *ins_mem, IF_ID_t *IF_ID)
     if(valid) puts("\tVALID");
     printf("\tPC: %d\n", PC);
     printf("\tbin: 0x%08x\n", bin);
+    printf("\tIF_ID_Write: %d\n", IF_ID_Write);
+    printf("\tSTALL: %d\n", stall);
 #endif
     return;
 }
 
-void ID(IF_ID_t *IF_ID, register_t reg_file[], ID_EX_t *ID_EX)
+void ID(IF_ID_t *IF_ID, register_t reg_file[], HDU_ctrl_t *HDU_ctrl, ID_EX_t *ID_EX)
 {
     byte_t opcode, func3, func7;
     control_signals_t ctrl = {0};
@@ -103,6 +126,7 @@ void ID(IF_ID_t *IF_ID, register_t reg_file[], ID_EX_t *ID_EX)
     register_t rs1, rs2;
     addr_t PC =    IF_ID->PC;
     uint32_t bin = IF_ID->ins;
+    bool stall = HDU_ctrl->stall;
 
     opcode = bin & 0x7F;
     func3 = (bin >> 12) & 0x7;
@@ -140,11 +164,13 @@ void ID(IF_ID_t *IF_ID, register_t reg_file[], ID_EX_t *ID_EX)
     printf("\timm: %d\n", imm);
     printf("\tALU SRC: %d\n", ctrl.ALUSrc);
     printf("\tbranch: %d\n", ctrl.Branch);
+    printf("\tRegWrite: %d\n", ctrl.RegWrite);
+    printf("\tSTALL: %d\n", stall);
 #endif
     return;
 }
 
-void EX(ID_EX_t *ID_EX, fwd_ctrl_t *fwd_ctrl, EX_MEM_t *EX_MEM, PC_reg_t *PC_reg)
+void EX(ID_EX_t *ID_EX, fwd_ctrl_t *fwd_ctrl, HDU_ctrl_t *HDU_ctrl, EX_MEM_t *EX_MEM, PC_reg_t *PC_reg)
 { 
     signal_t PCSrc;
     addr_t PC_imm_sum;
@@ -152,6 +178,7 @@ void EX(ID_EX_t *ID_EX, fwd_ctrl_t *fwd_ctrl, EX_MEM_t *EX_MEM, PC_reg_t *PC_reg
     register_t ALU_ret;
     signal_t ALU_zero;
     byte_t ALU_ctrl;
+    bool stall = HDU_ctrl->stall;
     register_t rd_addr = ID_EX->rd_addr;
     addr_t PC =          ID_EX->PC;
     byte_t func3 =       ID_EX->func3;
@@ -159,6 +186,7 @@ void EX(ID_EX_t *ID_EX, fwd_ctrl_t *fwd_ctrl, EX_MEM_t *EX_MEM, PC_reg_t *PC_reg
     signal_t rs1 =       ID_EX->rs1;
     signal_t rs2 =       ID_EX->rs2;
     signal_t imm =       ID_EX->imm;
+    if(stall) memset(&ID_EX->ctrl, 0, sizeof(control_signals_t));
     signal_t ALUOp =     ID_EX->ctrl.ALUOp;
     signal_t ALUSrc =    ID_EX->ctrl.ALUSrc;
     signal_t Branch =    ID_EX->ctrl.Branch;
@@ -197,6 +225,7 @@ void EX(ID_EX_t *ID_EX, fwd_ctrl_t *fwd_ctrl, EX_MEM_t *EX_MEM, PC_reg_t *PC_reg
     ALU(input0, input1, ALU_ctrl, &ALU_ret, &ALU_zero);
     PC_imm_sum = Add(PC, imm);
     PCSrc = Branch && ALU_zero;
+    if(stall) ALU_ret = 0;
 
     EX_MEM->valid =      ID_EX->valid;
     EX_MEM->ALU_ret =    ALU_ret;
@@ -216,6 +245,8 @@ void EX(ID_EX_t *ID_EX, fwd_ctrl_t *fwd_ctrl, EX_MEM_t *EX_MEM, PC_reg_t *PC_reg
     printf("\tinput1: %d\n", input1);
     printf("\tALU zero: %d\n", ALU_zero);
     printf("\tALU ret: %d\n", ALU_ret);
+    printf("\tRegWrite: %d\n", ID_EX->ctrl.RegWrite);
+    printf("\tSTALL: %d\n", stall);
 #endif
     return;
 }
@@ -248,6 +279,7 @@ void MEM(EX_MEM_t *EX_MEM, byte_t data_mem[], MEM_WB_t *MEM_WB, fwd_ctrl_t *fwd_
     if(MemWrite) printf("\tMEM Write: %d -> @%d\n", rs2, ALU_ret);
     if(MemRead) printf("\tMEM Read: %d <- @%d\n", mem_out, ALU_ret);
     printf("\tData to WB: %d\n", reg_data_in);
+    printf("\tRegWrite: %d\n", RegWrite);
     printf("\tHolding ALU_ret: %d\n", ALU_ret);
     printf("\tHolding rs2: %d\n", rs2);
     printf("\tHolding rd_addr: %d\n", rd_addr);
@@ -275,21 +307,23 @@ void WB(MEM_WB_t *MEM_WB, register_t reg_file[])
     return;
 }
 
-void PC(PC_reg_t *PC_reg, addr_t *PC)
+void PC(PC_reg_t *PC_reg, addr_t *PC, HDU_ctrl_t *HDU_ctrl)
 {
     addr_t new_PC;
     addr_t old_PC = *PC;
     addr_t PC_inc = Add(old_PC, 4);
     addr_t PC_imm_sum = PC_reg->PC_imm_sum;
     signal_t PCSrc = PC_reg->PCSrc;
+    bool PCWrite = HDU_ctrl->PCWrite;
 
     new_PC = MUX(PCSrc, PC_inc, PC_imm_sum);
 
-    *PC = new_PC;
+    if(PCWrite) *PC = new_PC;
 #if VERBOSE == 1
     puts("PROGRAM COUNTER:");
-    printf("\tPC = %d + %s\n", old_PC, PCSrc ? "imm" : "4");
+    printf("\tPC = %d + %s\n", old_PC, PCWrite ? PCSrc ? "imm" : "4" : "0");
     printf("\tNEW PC: %d\n", new_PC);
+    printf("\tPCWrite: %d\n", PCWrite);
 #endif
     return;
 }
