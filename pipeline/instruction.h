@@ -1,0 +1,116 @@
+#ifndef __INSTRUCTION_H__
+#define __INSTRUCTION_H__
+
+#include <stdint.h>
+
+#define IMEMSZ 512
+#define NOPS 57
+
+typedef uint64_t tick_t;
+typedef uint64_t addr_t;
+typedef enum ins_type_e ins_type_t;
+typedef struct opcode_s opcode_t;
+typedef struct instruction_s instruction_t;
+typedef struct ins_list_s ins_list_t;
+typedef struct i_mem_s i_mem_t;
+
+enum ins_type_e 
+{
+    NULL_TYPE,
+    R_TYPE,
+    I_TYPE,
+    S_TYPE,
+    SB_TYPE,
+    U_TYPE,
+    UJ_TYPE
+};
+
+struct opcode_s
+{
+    char *name;
+    uint8_t code;
+    ins_type_t type; 
+    uint8_t func3;
+    uint8_t func7;
+};
+
+struct instruction_s 
+{
+    uint64_t addr;
+    uint32_t bin;
+    opcode_t opc;
+};
+
+struct i_mem_s
+{
+    uint64_t cnt;
+    instruction_t mem[IMEMSZ];
+};
+
+i_mem_t *i_mem_init();
+int i_mem_delete(i_mem_t *m);
+int i_mem_add(i_mem_t *m, uint64_t addr, uint32_t bin, opcode_t *opc);
+
+static opcode_t opcode_map[NOPS] =
+{
+    {"lb",     0x03, I_TYPE,  0x0, 0x00},
+    {"lh",     0x03, I_TYPE,  0x1, 0x00},
+    {"lw",     0x03, I_TYPE,  0x2, 0x00},
+    {"ld",     0x03, I_TYPE,  0x3, 0x00},
+    {"lbu",    0x03, I_TYPE,  0x4, 0x00},
+    {"lhu",    0x03, I_TYPE,  0x5, 0x00},
+    {"lwu",    0x03, I_TYPE,  0x6, 0x00},
+    {"addi",   0x13, I_TYPE,  0x0, 0x00},
+    {"slli",   0x13, I_TYPE,  0x1, 0x00},
+    {"slti",   0x13, I_TYPE,  0x2, 0x00},
+    {"sltiu",  0x13, I_TYPE,  0x3, 0x00},
+    {"xori",   0x13, I_TYPE,  0x4, 0x00},
+    {"srli",   0x13, I_TYPE,  0x5, 0x00},
+    {"srai",   0x13, I_TYPE,  0x5, 0x20},
+    {"ori",    0x13, I_TYPE,  0x6, 0x00},
+    {"andi",   0x13, I_TYPE,  0x7, 0x00},
+    {"auipc",  0x17, U_TYPE,  0x0, 0x00},
+    {"addiw",  0x1B, I_TYPE,  0x0, 0x00},
+    {"slliw",  0x1B, I_TYPE,  0x1, 0x00},
+    {"srliw",  0x1B, I_TYPE,  0x3, 0x00},
+    {"sraiw",  0x1B, I_TYPE,  0x3, 0x20},
+    {"sb",     0x23, S_TYPE,  0x0, 0x00},
+    {"sh",     0x23, S_TYPE,  0x1, 0x00},
+    {"sw",     0x23, S_TYPE,  0x2, 0x00},
+    {"sd",     0x23, S_TYPE,  0x3, 0x00},
+    {"add",    0x33, R_TYPE,  0x0, 0x00},
+    {"sub",    0x33, R_TYPE,  0x0, 0x20},
+    {"sll",    0x33, R_TYPE,  0x1, 0x00},
+    {"slt",    0x33, R_TYPE,  0x2, 0x00},
+    {"sltu",   0x33, R_TYPE,  0x3, 0x00},
+    {"xor",    0x33, R_TYPE,  0x4, 0x00},
+    {"srl",    0x33, R_TYPE,  0x5, 0x00},
+    {"sra",    0x33, R_TYPE,  0x5, 0x20},
+    {"or",     0x33, R_TYPE,  0x6, 0x00},
+    {"and",    0x33, R_TYPE,  0x7, 0x00},
+    {"lui",    0x37, U_TYPE,  0x0, 0x00},
+    {"addw",   0x3B, R_TYPE,  0x0, 0x00},
+    {"subw",   0x3B, R_TYPE,  0x0, 0x20},
+    {"sllw",   0x3B, R_TYPE,  0x1, 0x00},
+    {"srlw",   0x3B, R_TYPE,  0x5, 0x00},
+    {"sraw",   0x3B, R_TYPE,  0x5, 0x20},
+    {"beq",    0x63, SB_TYPE, 0x0, 0x00},
+    {"bne",    0x63, SB_TYPE, 0x1, 0x00},
+    {"blt",    0x63, SB_TYPE, 0x4, 0x00},
+    {"bge",    0x63, SB_TYPE, 0x5, 0x00},
+    {"bltu",   0x63, SB_TYPE, 0x6, 0x00},
+    {"bgeu",   0x63, SB_TYPE, 0x7, 0x00},
+    {"jalr",   0x67, I_TYPE,  0x0, 0x00},
+    {"jal",    0x6F, UJ_TYPE, 0x0, 0x00},
+    {"ecall",  0x73, I_TYPE,  0x0, 0x00},
+    {"ebreak", 0x73, I_TYPE,  0x0, 0x01},
+    {"CSRRW",  0x73, I_TYPE,  0x1, 0x00},
+    {"CSRRS",  0x73, I_TYPE,  0x2, 0x00},
+    {"CSRRC",  0x73, I_TYPE,  0x3, 0x00},
+    {"CSRRWI", 0x73, I_TYPE,  0x5, 0x00},
+    {"CSRRSI", 0x73, I_TYPE,  0x6, 0x00},
+    {"CSRRCI", 0x73, I_TYPE,  0x7, 0x00},
+};
+
+#endif // __INSTRUCTION_H__
+
