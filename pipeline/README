@@ -1,4 +1,4 @@
-ECEC 355 Project 2: RISC-V Pipeline
+ECEC 355 Project 3: RISC-V Pipeline
 By Cole Bardin (cab572)
 
 Change Log:
@@ -9,7 +9,13 @@ Change Log:
 - Each stage updates the remote copy of their output inter-stage register
 - EX->EX & MEM->EX forwarding is detected by forwarding unit
 - Hazard detection unit will trigger ID and ID stalls on load hazards
+- VERBOSE mode now outputs the info for each stage
 
-Usage is still the same
+
+Verbose mode for debug can be enabled by passing VERBOSE=1 option to Make.
+If source code has not changed, Make will not rebuild with new flags.
+You must 'make clean' before calling Make again with a different VERBOSE flag value.
+
+Usage is still the same.
 
 USAGE: ./RISCV_core <trace-file>

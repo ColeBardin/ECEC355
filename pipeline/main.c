@@ -1,7 +1,7 @@
-/* Simulator for the RISC-V pipeline simulator
+/* Simulator for the RISC-V pipeline
  *
  * Build as follows:
- *  $make clean && make
+ *  $make clean && make [VERBOSE=(0|1)]
  *
  * Execute as follows: 
  *  $./RISCV_core <trace file>
