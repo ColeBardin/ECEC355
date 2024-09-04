@@ -1,13 +1,14 @@
-ECEC 355 Project 2: RISC-V Datapath
+ECEC 355 Project 2: RISC-V Pipeline
 By Cole Bardin (cab572)
 
-I updated my library to use a similar array of struct architecture to be more representative of instruction memory.
-The codebase also still has the modificaitons to the c files so there is an instruction.c/h
-The Makefile has been updated accordingly.
-
-When building the project, an optional VERBOSE variable can be set to either 1 or 0 to control verbose debug messages.
-If the source is has not been updated and but you are trying to compile with a different VERBOSE setting, run '$ make clean' first.
-This is because Make will not recompile if the source has not changed, even if a variable input has changed
+Change Log:
+- CPU core is broken into pipelined stages
+- Each clock tick executes all pipelines
+- Simulation is done when all stages are idle and PC is passed max
+- Inter-stage registers are copied before the stages are executed
+- Each stage updates the remote copy of their output inter-stage register
+- EX->EX & MEM->EX forwarding is detected by forwarding unit
+- Hazard detection unit will trigger ID and ID stalls on load hazards
 
 Usage is still the same
 
