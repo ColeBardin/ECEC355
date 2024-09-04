@@ -199,11 +199,9 @@ void EX(ID_EX_t *ID_EX, fwd_ctrl_t *fwd_ctrl, HDU_ctrl_t *HDU_ctrl, EX_MEM_t *EX
             break;
         case 1: // EX hazard
             rs1 = EX_MEM->ALU_ret;
-            puts("rs1 fwd from ex");
             break;
         case 2: // MEM hazard
             rs1 = fwd_ctrl->reg_data_in;
-            puts("rs1 fwd from mem");
             break;
     }
     switch(fwd_ctrl->fwdB)
@@ -213,11 +211,9 @@ void EX(ID_EX_t *ID_EX, fwd_ctrl_t *fwd_ctrl, HDU_ctrl_t *HDU_ctrl, EX_MEM_t *EX
             break;
         case 1: // EX hazard
             rs2 = EX_MEM->ALU_ret;
-            puts("rs2 fwd from ex");
             break;
         case 2: // MEM hazard
             rs2 = fwd_ctrl->reg_data_in;
-            puts("rs2 fwd from mem");
             break;
     }
     input0 = rs1;
@@ -239,6 +235,10 @@ void EX(ID_EX_t *ID_EX, fwd_ctrl_t *fwd_ctrl, HDU_ctrl_t *HDU_ctrl, EX_MEM_t *EX
     PC_reg->PC_imm_sum = PC_imm_sum;
 #if VERBOSE == 1
     puts("EXECUTE:");
+    if(fwd_ctrl->fwdA == 1) puts("rs1 fwd from EX");
+    if(fwd_ctrl->fwdA == 2) puts("rs1 fwd from MEM");
+    if(fwd_ctrl->fwdB == 1) puts("rs2 fwd from EX");
+    if(fwd_ctrl->fwdB == 2) puts("rs2 fwd from MEM");
     if(ID_EX->valid) puts("\tVALID");
     printf("\tALU ctrl: %d\n", ALU_ctrl);
     printf("\tinput0: %d\n", input0);
