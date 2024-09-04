@@ -35,21 +35,21 @@ bool tick_func(core_t *core)
     ID_EX_t ID_EX = core->ID_EX;
     EX_MEM_t EX_MEM = core->EX_MEM;
     MEM_WB_t MEM_WB = core->MEM_WB;
-    // (Step 0) Determine data hazards & forwarding
+    // Determine data hazards & forwarding
     hazard_detection_unit(&ID_EX, &EX_MEM, &core->HDU_ctrl);
     forwarding_unit(&ID_EX, &EX_MEM, &MEM_WB, &core->fwd_ctrl);
-    // (Step 1) Instruction Fetch
+    // Instruction Fetch
     IF(core->PC, core->ins_mem, &core->HDU_ctrl, &core->IF_ID);
-    // (Step 5) Write Back 
+    // Write Back 
     WB(&MEM_WB, core->reg_file);
-    // (Step 2) Instruction Decode
+    // Instruction Decode
     if(&core->HDU_ctrl.stall) IF_ID = core->IF_ID;
     ID(&IF_ID, core->reg_file, &core->HDU_ctrl, &core->ID_EX);
-    // (Step 3) Execute
+    // Execute
     EX(&ID_EX, &core->fwd_ctrl, &core->HDU_ctrl, &core->EX_MEM, &core->PC_reg);
-    // (Step 4) Memory
+    // Memory
     MEM(&EX_MEM, core->data_mem, &core->MEM_WB, &core->fwd_ctrl);
-    // (Step 6) Increment PC or Branch from EX
+    // Increment PC or Branch from EX
     PC(&core->PC_reg, &core->PC, &core->HDU_ctrl);
 
     core->clk++;
